@@ -1,0 +1,14 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+yfinance==0.2.51
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.14.1
+networkx==3.4.2
+scikit-learn==1.6.1
+ripser==0.6.10
+persim==0.3.7
+requests==2.32.3
+beautifulsoup4==4.12.3
+lxml==5.3.0
+pydantic==2.10.4

@@ -1,0 +1,16 @@
+# It looks like the remote repository on GitHub already has some files 
+# (like a README, LICENSE, or .gitignore) that are not in your local folder.
+
+# OPTION 1: Force Push (Recommended if you want your local folder to completely overwrite the GitHub repo)
+# This will erase whatever initial commit GitHub made and push your code.
+git push -u origin main --force
+
+
+# OPTION 2: Pull and Merge (Recommended if you want to keep the files GitHub created, like a README)
+# Step A: Pull the existing files from GitHub and merge them with your local code
+git pull origin main --allow-unrelated-histories
+
+# Step B: If there's a merge conflict, it might ask you to make a commit message. Just save and close the editor.
+
+# Step C: Now that you have the remote files locally, you can push everything back up
+git push -u origin main

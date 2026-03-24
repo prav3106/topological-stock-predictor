@@ -1,0 +1,55 @@
+INFO:     Started server process [62185]
+INFO:     Waiting for application startup.
+INFO:main:🚀 Starting Topology Trading System…
+INFO:data_fetcher:Scraped 50 Nifty 50 tickers from Wikipedia
+INFO:data_fetcher:Downloading data for 50 tickers from yfinance in chunks…
+INFO:data_fetcher:Fetching chunk: ['ADANIENT.NS', 'ADANIPORTS.NS', 'APOLLOHOSP.NS', 'ASIANPAINT.NS', 'AXISBANK.NS']
+ERROR:yfinance:
+5 Failed downloads:
+ERROR:yfinance:['AXISBANK.NS', 'APOLLOHOSP.NS', 'ADANIENT.NS', 'ADANIPORTS.NS', 'ASIANPAINT.NS']: JSONDecodeError('Expecting value: line 1 column 1 (char 0)')
+INFO:data_fetcher:Fetching chunk: ['BAJAJ-AUTO.NS', 'BAJFINANCE.NS', 'BAJAJFINSV.NS', 'BEL.NS', 'BHARTIARTL.NS']
+ERROR:yfinance:
+5 Failed downloads:
+ERROR:yfinance:['BAJAJFINSV.NS', 'BEL.NS', 'BHARTIARTL.NS', 'BAJFINANCE.NS', 'BAJAJ-AUTO.NS']: JSONDecodeError('Expecting value: line 1 column 1 (char 0)')
+INFO:data_fetcher:Fetching chunk: ['CIPLA.NS', 'COALINDIA.NS', 'DRREDDY.NS', 'EICHERMOT.NS', 'ETERNAL.NS']
+ERROR:yfinance:
+5 Failed downloads:
+ERROR:yfinance:['CIPLA.NS', 'DRREDDY.NS', 'COALINDIA.NS', 'ETERNAL.NS', 'EICHERMOT.NS']: JSONDecodeError('Expecting value: line 1 column 1 (char 0)')
+INFO:data_fetcher:Fetching chunk: ['GRASIM.NS', 'HCLTECH.NS', 'HDFCBANK.NS', 'HDFCLIFE.NS', 'HINDALCO.NS']
+ERROR:yfinance:
+5 Failed downloads:
+ERROR:yfinance:['HINDALCO.NS', 'HDFCBANK.NS', 'HDFCLIFE.NS', 'GRASIM.NS', 'HCLTECH.NS']: JSONDecodeError('Expecting value: line 1 column 1 (char 0)')
+INFO:data_fetcher:Fetching chunk: ['HINDUNILVR.NS', 'ICICIBANK.NS', 'INDIGO.NS', 'INFY.NS', 'ITC.NS']
+ERROR:yfinance:
+5 Failed downloads:
+ERROR:yfinance:['INFY.NS', 'HINDUNILVR.NS', 'INDIGO.NS', 'ICICIBANK.NS', 'ITC.NS']: JSONDecodeError('Expecting value: line 1 column 1 (char 0)')
+INFO:data_fetcher:Fetching chunk: ['JIOFIN.NS', 'JSWSTEEL.NS', 'KOTAKBANK.NS', 'LT.NS', 'M&M.NS']
+ERROR:yfinance:
+5 Failed downloads:
+ERROR:yfinance:['JIOFIN.NS', 'LT.NS', 'JSWSTEEL.NS', 'KOTAKBANK.NS', 'M&M.NS']: JSONDecodeError('Expecting value: line 1 column 1 (char 0)')
+INFO:data_fetcher:Fetching chunk: ['MARUTI.NS', 'MAXHEALTH.NS', 'NESTLEIND.NS', 'NTPC.NS', 'ONGC.NS']
+ERROR:yfinance:
+5 Failed downloads:
+ERROR:yfinance:['NESTLEIND.NS', 'ONGC.NS', 'NTPC.NS', 'MAXHEALTH.NS', 'MARUTI.NS']: JSONDecodeError('Expecting value: line 1 column 1 (char 0)')
+INFO:data_fetcher:Fetching chunk: ['POWERGRID.NS', 'RELIANCE.NS', 'SBILIFE.NS', 'SHRIRAMFIN.NS', 'SBIN.NS']
+ERROR:yfinance:
+5 Failed downloads:
+ERROR:yfinance:['SHRIRAMFIN.NS', 'SBIN.NS', 'SBILIFE.NS', 'RELIANCE.NS', 'POWERGRID.NS']: JSONDecodeError('Expecting value: line 1 column 1 (char 0)')
+INFO:data_fetcher:Fetching chunk: ['SUNPHARMA.NS', 'TCS.NS', 'TATACONSUM.NS', 'TMPV.NS', 'TATASTEEL.NS']
+ERROR:yfinance:
+5 Failed downloads:
+ERROR:yfinance:['TCS.NS', 'TATACONSUM.NS', 'SUNPHARMA.NS', 'TATASTEEL.NS', 'TMPV.NS']: JSONDecodeError('Expecting value: line 1 column 1 (char 0)')
+INFO:data_fetcher:Fetching chunk: ['TECHM.NS', 'TITAN.NS', 'TRENT.NS', 'ULTRACEMCO.NS', 'WIPRO.NS']
+ERROR:yfinance:
+5 Failed downloads:
+ERROR:yfinance:['TRENT.NS', 'WIPRO.NS', 'ULTRACEMCO.NS', 'TECHM.NS', 'TITAN.NS']: JSONDecodeError('Expecting value: line 1 column 1 (char 0)')
+WARNING:data_fetcher:yfinance returned empty or insufficient data. Generating synthetic data for testing.
+INFO:data_fetcher:Fetched prices: 252 days × 50 tickers
+INFO:main:✅ Data pre-fetched successfully (50 tickers)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:55321 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55384 - "GET / HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55384 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55384 - "GET /api HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55384 - "GET / HTTP/1.1" 404 Not Found

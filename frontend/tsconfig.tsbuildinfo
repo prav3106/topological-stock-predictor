@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/anomalydashboard.tsx","./src/components/controlspanel.tsx","./src/components/graphview.tsx","./src/components/persistencediagram.tsx","./src/components/predictionpanel.tsx","./src/hooks/usemarketdata.ts","./src/types/market.ts"],"version":"5.6.2"}
