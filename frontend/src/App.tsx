@@ -19,9 +19,9 @@ export default function App() {
     const [activeTab, setActiveTab] = useState<TabKey>('graph');
     const [params, setParams] = useState<GraphParams>({
         lookback_days: 252,
-        sigma: 0.5,
-        diffusion_t: 1.0,
-        edge_threshold: 0.3,
+        sigma: 0.8,
+        diffusion_t: 1.2,
+        edge_threshold: 0.45,
     });
     const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
     const [horizon, setHorizon] = useState(5);
