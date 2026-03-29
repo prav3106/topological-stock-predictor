@@ -14,6 +14,7 @@ from graph_engine import build_graph_data, get_residual_history
 from topology_engine import run_topology_analysis
 from prediction_engine import predict_stock
 from portfolio_engine import optimize_portfolio
+from backtest_engine import run_backtest
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -40,14 +41,14 @@ app.add_middleware(
 # ──────────────────────────────────────────────
 
 class BuildGraphRequest(BaseModel):
-    lookback_days: int = Field(default=252, ge=30, le=504)
+    lookback_days: int = Field(default=126, ge=30, le=504)
     sigma: float = Field(default=0.5, gt=0.01, le=5.0)
-    diffusion_t: float = Field(default=1.0, gt=0.01, le=5.0)
-    edge_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
+    diffusion_t: float = Field(default=0.7, gt=0.01, le=5.0)
+    edge_threshold: float = Field(default=0.58, ge=0.0, le=1.0)
 
 
 class TopologyRequest(BaseModel):
-    lookback_days: int = Field(default=252, ge=30, le=504)
+    lookback_days: int = Field(default=126, ge=30, le=504)
     embedding_dim: int = Field(default=10, ge=3, le=60)
 
 
@@ -61,6 +62,12 @@ class PortfolioRequest(BaseModel):
     max_position: float = Field(default=0.05, ge=0.01, le=1.0)
     market_neutral: bool = Field(default=True)
     sector_neutral: bool = Field(default=True)
+
+
+class BacktestRequest(BaseModel):
+    ticker: str
+    horizon_days: int = Field(default=30, ge=7, le=60)
+    window_days: int = Field(default=90, ge=30, le=200)
 
 
 # ──────────────────────────────────────────────
@@ -77,7 +84,7 @@ _state = {
 }
 
 
-def _ensure_data(lookback_days: int = 252):
+def _ensure_data(lookback_days: int = 126):
     """Ensure data is loaded."""
     if _state["prices"] is None:
         tickers = fetch_nifty50_tickers()
@@ -359,6 +366,24 @@ async def generate_portfolio(req: PortfolioRequest):
         
     except Exception as e:
         logger.error("portfolio error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/backtest")
+async def backtest(req: BacktestRequest):
+    """
+    Run a historical backtest for a specific ticker.
+    """
+    try:
+        # Ticker check handled in engine
+        result = run_backtest(
+            ticker=req.ticker,
+            horizon_days=req.horizon_days,
+            window_days=req.window_days
+        )
+        return result
+    except Exception as e:
+        logger.error("backtest error: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

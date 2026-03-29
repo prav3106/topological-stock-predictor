@@ -4,6 +4,7 @@ import PersistenceDiagram from './components/PersistenceDiagram';
 import PredictionPanel from './components/PredictionPanel';
 import AnomalyDashboard from './components/AnomalyDashboard';
 import ControlsPanel from './components/ControlsPanel';
+import BacktestTab from './components/BacktestTab';
 import {
     useGraphData,
     useTopologyData,
@@ -13,7 +14,7 @@ import {
 } from './hooks/useMarketData';
 import type { GraphParams } from './types/market';
 
-type TabKey = 'graph' | 'topology' | 'anomalies';
+type TabKey = 'graph' | 'topology' | 'anomalies' | 'backtest';
 
 export default function App() {
     const [activeTab, setActiveTab] = useState<TabKey>('graph');
@@ -62,6 +63,7 @@ export default function App() {
         { key: 'graph', label: 'Graph View', icon: '◉' },
         { key: 'topology', label: 'Topology', icon: '◎' },
         { key: 'anomalies', label: 'Anomalies', icon: '⚡' },
+        { key: 'backtest', label: 'Backtest', icon: '◷' },
     ];
 
     return (
@@ -71,23 +73,26 @@ export default function App() {
                 <div className="header-brand">
                     <span className="brand-icon">⬡</span>
                     <div>
-                        <h1>Topology Trading System</h1>
-                        <p className="brand-subtitle">Graph Diffusion · TDA · Indian Market (NSE)</p>
+                        <h1>TOPOLOGY</h1>
+                        <p className="brand-subtitle">TRADING SYSTEM</p>
                     </div>
                 </div>
+
                 <div className="header-status">
                     {graph.data && (
-                        <span className="status-chip success">
-                            {graph.data.nodes.length} stocks loaded
-                        </span>
+                        <div className="status-chip success mono">
+                            {graph.data.nodes.length} STOCKS LOADED
+                        </div>
                     )}
                     {topology.data && (
-                        <span className={`status-chip ${topology.data.regime === 'LOW_COMPLEXITY' ? 'success' :
-                                topology.data.regime === 'HIGH_COMPLEXITY' ? 'danger' : 'warning'
-                            }`}>
+                        <div className={`status-chip ${
+                            topology.data.regime === 'LOW_COMPLEXITY' ? 'success' :
+                            topology.data.regime === 'HIGH_COMPLEXITY' ? 'danger' : 'warning'
+                        } mono`}>
                             {topology.data.regime.replace('_', ' ')}
-                        </span>
+                        </div>
                     )}
+                    <button className="transition-btn mono">TRANSITION</button>
                 </div>
             </header>
 
@@ -115,7 +120,6 @@ export default function App() {
                                 className={`tab-btn ${activeTab === t.key ? 'active' : ''}`}
                                 onClick={() => setActiveTab(t.key)}
                             >
-                                <span className="tab-icon">{t.icon}</span>
                                 {t.label}
                             </button>
                         ))}
@@ -125,21 +129,26 @@ export default function App() {
                     <div className="tab-content">
                         {activeTab === 'graph' && (
                             <div className="graph-layout">
-                                <GraphView
-                                    data={graph.data}
-                                    loading={graph.loading}
-                                    error={graph.error}
-                                    edgeThreshold={params.edge_threshold}
-                                    onNodeClick={handleNodeClick}
-                                />
-                                <PredictionPanel
-                                    data={prediction.data}
-                                    loading={prediction.loading}
-                                    error={prediction.error}
-                                    onHorizonChange={handleHorizonChange}
-                                    selectedHorizon={horizon}
-                                    onClose={handleClosePrediction}
-                                />
+                                <div className="graph-view-container">
+                                    <div className="graph-vignette" />
+                                    <GraphView
+                                        data={graph.data}
+                                        loading={graph.loading}
+                                        error={graph.error}
+                                        edgeThreshold={params.edge_threshold}
+                                        onNodeClick={handleNodeClick}
+                                    />
+                                </div>
+                                <div className="prediction-sidebar">
+                                    <PredictionPanel
+                                        data={prediction.data}
+                                        loading={prediction.loading}
+                                        error={prediction.error}
+                                        onHorizonChange={handleHorizonChange}
+                                        selectedHorizon={horizon}
+                                        onClose={handleClosePrediction}
+                                    />
+                                </div>
                             </div>
                         )}
 
@@ -158,6 +167,10 @@ export default function App() {
                                 error={anomalies.error}
                                 onTickerClick={handleNodeClick}
                             />
+                        )}
+
+                        {activeTab === 'backtest' && (
+                            <BacktestTab />
                         )}
                     </div>
                 </main>

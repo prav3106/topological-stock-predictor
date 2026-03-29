@@ -107,10 +107,10 @@ export default function GraphView({ data, loading, error, edgeThreshold, onNodeC
         // Label
         if (globalScale > 0.6) {
             const label = node.id.replace('.NS', '');
-            ctx.font = `${fontSize}px Inter, sans-serif`;
+            ctx.font = `600 ${fontSize}px "JetBrains Mono", monospace`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
-            ctx.fillStyle = 'rgba(220, 225, 240, 0.9)';
+            ctx.fillStyle = 'rgba(249, 250, 251, 0.9)';
             ctx.fillText(label, x, y + size + 2);
         }
     }, [getNodeColor, getNodeSize]);

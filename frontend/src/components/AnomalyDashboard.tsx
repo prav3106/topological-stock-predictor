@@ -42,67 +42,61 @@ export default function AnomalyDashboard({ data, loading, error, onTickerClick }
     }
 
     return (
-        <div className="panel anomaly-panel">
-            <h2>Top Anomalies</h2>
+        <div className="panel">
+            <h2 className="mono">Anomalies Detected</h2>
             <p className="panel-subtitle">Stocks most diverged from graph consensus</p>
 
-            <div className="anomaly-table-wrapper">
+            <div className="anomaly-table-wrapper" style={{ marginTop: '24px' }}>
                 <table className="anomaly-table">
                     <thead>
                         <tr>
                             <th>Ticker</th>
                             <th>Residual</th>
                             <th>Signal</th>
-                            <th>Predicted Move</th>
-                            <th>Confidence</th>
+                            <th>Move</th>
+                            <th style={{ textAlign: 'right' }}>Confidence</th>
                         </tr>
                     </thead>
                     <tbody>
                         {data.anomalies.map(a => {
                             const isOver = a.signal === 'OVERPERFORMING';
-                            const rowColor = isOver
-                                ? 'rgba(239, 68, 68, 0.08)'
-                                : a.signal === 'UNDERPERFORMING'
-                                    ? 'rgba(59, 130, 246, 0.08)'
-                                    : 'transparent';
-
-                            const signalColor = isOver ? '#ef4444' : a.signal === 'UNDERPERFORMING' ? '#60a5fa' : '#f59e0b';
+                            const signalClass = isOver ? 'over' : a.signal === 'UNDERPERFORMING' ? 'under' : '';
 
                             return (
                                 <tr
                                     key={a.ticker}
-                                    style={{ background: rowColor }}
                                     className="anomaly-row"
                                     onClick={() => onTickerClick(a.ticker)}
                                 >
-                                    <td className="ticker-cell">
-                                        <span className="ticker-name">{a.ticker.replace('.NS', '')}</span>
-                                        {a.price > 0 && <span className="ticker-price">₹{a.price.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>}
+                                    <td className="symbol-col">
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span>{a.ticker.replace('.NS', '')}</span>
+                                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>₹{a.price.toLocaleString('en-IN')}</span>
+                                        </div>
+                                    </td>
+                                    <td className={a.residual > 0 ? 'res-positive' : 'res-negative'}>
+                                        {a.residual > 0 ? '+' : ''}{a.residual.toFixed(4)}
                                     </td>
                                     <td>
-                                        <span
-                                            className="residual-badge"
-                                            style={{ color: signalColor }}
-                                        >
-                                            {a.residual > 0 ? '+' : ''}{a.residual.toFixed(4)}
+                                        <span className={`signal-pill ${signalClass}`}>
+                                            {a.signal}
                                         </span>
                                     </td>
+                                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{a.predicted_move}</td>
                                     <td>
-                                        <span className="signal-badge" style={{ color: signalColor, borderColor: signalColor }}>
-                                            {isOver ? '🔴' : '🔵'} {a.signal}
-                                        </span>
-                                    </td>
-                                    <td className="move-cell">{a.predicted_move}</td>
-                                    <td>
-                                        <div className="confidence-bar-wrapper">
-                                            <div
-                                                className="confidence-bar-fill"
-                                                style={{
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                                            <div style={{ width: '60px', height: '2px', background: 'var(--border-primary)', position: 'relative' }}>
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    right: 0,
                                                     width: `${a.confidence * 100}%`,
-                                                    background: `linear-gradient(90deg, ${signalColor}60, ${signalColor})`,
-                                                }}
-                                            />
-                                            <span className="confidence-label">{(a.confidence * 100).toFixed(0)}%</span>
+                                                    height: '100%',
+                                                    background: isOver ? 'var(--bearish)' : 'var(--accent-blue)',
+                                                }} />
+                                            </div>
+                                            <span className="mono" style={{ fontSize: '0.65rem', width: '25px', textAlign: 'right' }}>
+                                                {Math.round(a.confidence * 100)}%
+                                            </span>
                                         </div>
                                     </td>
                                 </tr>

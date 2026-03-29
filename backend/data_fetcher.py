@@ -11,8 +11,12 @@ import yfinance as yf
 import requests
 from bs4 import BeautifulSoup
 from typing import List, Dict, Optional, Tuple
+from yfinance_utils import YFinanceFetcher
 
 logger = logging.getLogger(__name__)
+
+# Single instance of the robust fetcher
+_robust_fetcher = YFinanceFetcher()
 
 # ──────────────────────────────────────────────
 # In-memory cache
@@ -139,37 +143,27 @@ def fetch_stock_data(
     end = pd.Timestamp.now()
     start = end - pd.Timedelta(days=int(lookback_days * 1.6))  # buffer for weekends/holidays
 
-    logger.info("Downloading data for %d tickers from yfinance in chunks…", len(tickers))
+    logger.info("Downloading data for %d tickers using robust fetcher…", len(tickers))
     try:
-        session = requests.Session()
-        session.headers.update({"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"})
-        
-        all_data = []
-        chunk_size = 5
-        for i in range(0, len(tickers), chunk_size):
-            chunk = tickers[i:i + chunk_size]
-            logger.info("Fetching chunk: %s", chunk)
-            batch_data = yf.download(
-                chunk,
-                start=start.strftime("%Y-%m-%d"),
-                end=end.strftime("%Y-%m-%d"),
-                auto_adjust=True,
-                threads=False,
-                progress=False,
-                session=session
-            )
-            if not batch_data.empty:
-                all_data.append(batch_data)
-            time.sleep(1) # Rate limit protection
-
-        # Combine all fetched chunks via concat (only non-empty)
-        raw = pd.concat(all_data, axis=1) if all_data else pd.DataFrame()
-        
+        raw = _robust_fetcher.fetch_batched(
+            tickers,
+            start=start.strftime("%Y-%m-%d"),
+            end=end.strftime("%Y-%m-%d"),
+            batch_size=10 # Slightly larger batch allowed due to better retry logic
+        )
     except Exception as e:
-        logger.error("yfinance download failed: %s", e)
+        logger.error("Robust fetch failed: %s", e)
         raw = pd.DataFrame()
 
-    if raw.empty or raw.shape[1] < 10:
+    # Decide if we need fallback data
+    use_fallback = False
+    if raw.empty:
+        use_fallback = True
+    elif len(tickers) >= 10 and raw.shape[1] < (len(tickers) // 2):
+        # If we asked for a lot but got very few, fallback to ensure system stability
+        use_fallback = True
+    
+    if use_fallback:
         logger.warning("yfinance returned empty or insufficient data. Generating synthetic data for testing.")
         dates = pd.date_range(end=end, periods=lookback_days, freq="B")
 
@@ -202,12 +196,21 @@ def fetch_stock_data(
         raw = pd.DataFrame(synthetic, index=dates)
         prices = raw
     else:
-        # yfinance returns multi-level columns when >1 ticker
+        # Robustly handle different column structures
         if isinstance(raw.columns, pd.MultiIndex):
-            prices = raw["Close"]
+            if "Close" in raw.columns.get_level_values(0):
+                prices = raw["Close"]
+            else:
+                # Fallback for unexpected multi-index structures
+                prices = raw
         else:
-            prices = raw[["Close"]]
-            prices.columns = tickers[:1]
+            # If "Close" is a column, it means it's a single ticker fetch or old structure
+            if "Close" in raw.columns:
+                prices = raw[["Close"]]
+                prices.columns = tickers[:1]
+            else:
+                # Already has ticker names as columns (returned by robust fetcher)
+                prices = raw
 
         # Keep only requested lookback window
         prices = prices.tail(lookback_days)

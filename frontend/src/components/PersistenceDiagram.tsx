@@ -82,38 +82,31 @@ export default function PersistenceDiagram({ data, loading, error }: Persistence
     const features = data.features;
 
     return (
-        <div className="panel persistence-panel">
-            <h2>Persistence Diagram</h2>
-
-            {/* Regime Badge */}
-            <div className="regime-badge" style={{ background: rc.bg, boxShadow: rc.glow, borderColor: rc.text }}>
-                <span className="regime-label" style={{ color: rc.text }}>
+        <div className="panel">
+            <div className="prediction-header">
+                <h2 className="mono">Persistence Diagram</h2>
+                <div className={`signal-pill ${regime === 'LOW_COMPLEXITY' ? 'under' : regime === 'HIGH_COMPLEXITY' ? 'over' : 'neutral'}`} style={{ fontSize: '0.75rem' }}>
                     {regimeLabels[regime] || regime}
-                </span>
+                </div>
             </div>
 
             {/* Chart */}
-            <div className="chart-container">
-                <ResponsiveContainer width="100%" height={350}>
+            <div className="chart-container" style={{ marginTop: '20px' }}>
+                <ResponsiveContainer width="100%" height={320}>
                     <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 10 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(100,130,200,0.1)" />
+                        <CartesianGrid strokeDasharray="3 3" />
                         <XAxis
                             type="number" dataKey="birth" name="Birth"
                             domain={[0, maxVal]}
-                            tick={{ fill: '#8892b0', fontSize: 11 }}
-                            label={{ value: 'Birth', position: 'bottom', fill: '#8892b0', fontSize: 12 }}
                         />
                         <YAxis
                             type="number" dataKey="death" name="Death"
                             domain={[0, maxVal]}
-                            tick={{ fill: '#8892b0', fontSize: 11 }}
-                            label={{ value: 'Death', angle: -90, position: 'insideLeft', fill: '#8892b0', fontSize: 12 }}
                         />
                         <ReferenceLine
                             segment={[{ x: 0, y: 0 }, { x: maxVal, y: maxVal }]}
-                            stroke="rgba(200,200,200,0.3)"
+                            stroke="var(--border-primary)"
                             strokeDasharray="5 5"
-                            label=""
                         />
                         <Tooltip
                             content={({ active, payload }) => {
@@ -124,115 +117,84 @@ export default function PersistenceDiagram({ data, loading, error }: Persistence
                                 const dimLabel = point.dim === 'H0'
                                     ? '🔵 Connected Component (H0)'
                                     : '🔶 Loop / Cycle (H1)';
-                                const interpretation = point.dim === 'H0'
-                                    ? (isSignificant
-                                        ? 'A distinct cluster of correlated stocks. Longer lifetime = more independent sector group.'
-                                        : 'A minor component that quickly merged — likely noise.')
-                                    : (isSignificant
-                                        ? 'A circular correlation pattern (e.g., A↔B↔C↔A). Indicates complex market structure.'
-                                        : 'A short-lived loop — likely noise in correlations.');
-
+                                
                                 return (
                                     <div style={{
-                                        background: 'rgba(10, 15, 30, 0.97)',
-                                        border: '1px solid rgba(100,150,255,0.35)',
-                                        borderRadius: '10px',
-                                        padding: '14px 18px',
-                                        color: '#e0e8ff',
-                                        fontSize: '13px',
-                                        lineHeight: '1.7',
-                                        maxWidth: '320px',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                                        background: 'var(--bg-surface)',
+                                        border: '1px solid var(--border-primary)',
+                                        borderRadius: '8px',
+                                        padding: '12px',
+                                        color: 'var(--text-primary)',
+                                        fontSize: '11px',
+                                        maxWidth: '240px',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
                                     }}>
-                                        <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '8px' }}>
-                                            {dimLabel}
-                                        </div>
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px' }}>
-                                            <span style={{ color: '#8892b0' }}>Birth:</span>
-                                            <span style={{ fontFamily: 'monospace' }}>{point.birth.toFixed(4)}</span>
-                                            <span style={{ color: '#8892b0' }}>Death:</span>
-                                            <span style={{ fontFamily: 'monospace' }}>{point.death.toFixed(4)}</span>
-                                            <span style={{ color: '#8892b0' }}>Lifetime:</span>
-                                            <span style={{
-                                                fontFamily: 'monospace',
-                                                fontWeight: 700,
-                                                color: isSignificant ? '#60a5fa' : '#6b7280',
-                                            }}>{lifetime}</span>
-                                        </div>
-                                        <div style={{
-                                            marginTop: '10px',
-                                            padding: '8px 10px',
-                                            background: isSignificant ? 'rgba(96,165,250,0.1)' : 'rgba(107,114,128,0.1)',
-                                            borderRadius: '6px',
-                                            fontSize: '12px',
-                                            color: isSignificant ? '#93c5fd' : '#9ca3af',
-                                            borderLeft: `3px solid ${isSignificant ? '#60a5fa' : '#4b5563'}`,
-                                        }}>
-                                            {interpretation}
+                                        <div style={{ fontWeight: 700, marginBottom: '6px', color: 'var(--accent-blue)' }}>{dimLabel}</div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', fontFamily: 'var(--font-mono)' }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>Birth:</span>
+                                            <span>{point.birth.toFixed(4)}</span>
+                                            <span style={{ color: 'var(--text-muted)' }}>Death:</span>
+                                            <span>{point.death.toFixed(4)}</span>
+                                            <span style={{ color: 'var(--text-muted)' }}>Life:</span>
+                                            <span style={{ color: isSignificant ? 'var(--accent-blue)' : 'inherit' }}>{lifetime}</span>
                                         </div>
                                     </div>
                                 );
                             }}
                         />
                         <Scatter
-                            name="H0 (Components)"
+                            name="H0"
                             data={h0Points}
-                            fill="#60a5fa"
-                            opacity={0.8}
+                            fill="var(--accent-blue)"
+                            opacity={0.6}
                             shape="circle"
                         />
                         <Scatter
-                            name="H1 (Loops)"
+                            name="H1"
                             data={h1Points}
-                            fill="#fb923c"
-                            opacity={0.8}
+                            fill="#f59e0b"
+                            opacity={0.7}
                             shape="diamond"
                         />
                     </ScatterChart>
                 </ResponsiveContainer>
             </div>
 
-            {/* Legend */}
-            <div className="persistence-legend">
-                <span className="legend-item"><span className="dot" style={{ background: '#60a5fa' }} />H0 — Connected Components</span>
-                <span className="legend-item"><span className="dot" style={{ background: '#fb923c' }} />H1 — Loops / Cycles</span>
-            </div>
-
             {/* TDA Metrics */}
-            <div className="tda-metrics">
-                <h3>Topological Features</h3>
-                <div className="metrics-grid">
-                    <div className="metric">
-                        <span className="metric-label">Betti-0</span>
-                        <span className="metric-value">{features.betti_0}</span>
+            <div style={{ marginTop: '32px' }}>
+                <h3 className="mono" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '16px', letterSpacing: '0.1em' }}>TOPOLOGICAL FEATURES</h3>
+                <div className="metrics-grid-2x4">
+                    <div className="metric-item">
+                        <p className="metric-label">Betti-0</p>
+                        <p className="metric-value">{features.betti_0}</p>
                     </div>
-                    <div className="metric">
-                        <span className="metric-label">Betti-1</span>
-                        <span className="metric-value">{features.betti_1}</span>
+                    <div className="metric-item">
+                        <p className="metric-label">Betti-1</p>
+                        <p className="metric-value">{features.betti_1}</p>
                     </div>
-                    <div className="metric">
-                        <span className="metric-label">Max Pers. H0</span>
-                        <span className="metric-value">{features.max_persistence_h0.toFixed(3)}</span>
+                    <div className="metric-item">
+                        <p className="metric-label">Max Persistence H0</p>
+                        <p className="metric-value">{features.max_persistence_h0.toFixed(3)}</p>
                     </div>
-                    <div className="metric">
-                        <span className="metric-label">Max Pers. H1</span>
-                        <span className="metric-value">{features.max_persistence_h1.toFixed(3)}</span>
+                    <div className="metric-item">
+                        <p className="metric-label">Max Persistence H1</p>
+                        <p className="metric-value">{features.max_persistence_h1.toFixed(3)}</p>
                     </div>
-                    <div className="metric">
-                        <span className="metric-label">Mean Life H0</span>
-                        <span className="metric-value">{features.mean_lifetime_h0.toFixed(3)}</span>
+                    <div className="metric-item">
+                        <p className="metric-label">Mean Lifetime H0</p>
+                        <p className="metric-value">{features.mean_lifetime_h0.toFixed(3)}</p>
                     </div>
-                    <div className="metric">
-                        <span className="metric-label">Mean Life H1</span>
-                        <span className="metric-value">{features.mean_lifetime_h1.toFixed(3)}</span>
+                    <div className="metric-item">
+                        <p className="metric-label">Mean Lifetime H1</p>
+                        <p className="metric-value">{features.mean_lifetime_h1.toFixed(3)}</p>
                     </div>
-                    <div className="metric">
-                        <span className="metric-label">Entropy</span>
-                        <span className="metric-value">{features.topological_entropy.toFixed(3)}</span>
+                    <div className="metric-item">
+                        <p className="metric-label">Topological Entropy</p>
+                        <p className="metric-value">{features.topological_entropy.toFixed(3)}</p>
                     </div>
-                    <div className="metric">
-                        <span className="metric-label">Components</span>
-                        <span className="metric-value">{features.n_components}</span>
+                    <div className="metric-item">
+                        <p className="metric-label">Components</p>
+                        <p className="metric-value">{features.n_components}</p>
                     </div>
                 </div>
             </div>

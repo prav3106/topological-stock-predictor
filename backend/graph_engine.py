@@ -8,6 +8,14 @@ import pandas as pd
 import networkx as nx
 from scipy.linalg import expm
 from typing import Dict, List, Tuple, Any
+import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+
+# --- Global In-Memory Cache for Graph Stability ---
+_graph_cache: Dict[Tuple[int, int, int, float, float], Dict[str, Any]] = {}
+
 
 
 def compute_correlation_matrix(zscore_returns: pd.DataFrame) -> pd.DataFrame:
@@ -97,28 +105,54 @@ def compute_spring_layout(
 def build_graph_data(
     zscore_returns: pd.DataFrame,
     sigma: float = 0.5,
-    diffusion_t: float = 1.0,
-    edge_threshold: float = 0.3,
+    diffusion_t: float = 0.7,
+    edge_threshold: float = 0.58,
 ) -> Dict[str, Any]:
     """
-    Full graph pipeline:
-      1. Correlation matrix
-      2. Adjacency matrix (Gaussian kernel)
-      3. Normalized Laplacian
-      4. Graph diffusion
-      5. Residuals
-      6. Spring layout
-
-    Returns dict with nodes, edges, residuals, positions.
+    Full graph pipeline with Weekly Caching and Sparsity Guard.
     """
     tickers = list(zscore_returns.columns)
     n = len(tickers)
+    
+    # 1. Weekly Caching Key
+    # We use the ISO week and year of the latest data point to stabilize the graph
+    last_date = zscore_returns.index[-1]
+    year, week, _ = last_date.isocalendar()
+    lookback = len(zscore_returns)
+    cache_key = (year, week, lookback, sigma, edge_threshold)
+    
+    if cache_key in _graph_cache:
+        logger.info("Using cached graph for Week %d, %d", week, year)
+        return _graph_cache[cache_key]
 
-    # Step 1-2: Correlation → Adjacency
+    # Step 1: Correlation
     corr_matrix = compute_correlation_matrix(zscore_returns)
+    
+    # 2. Gaussian Kernel (using provided sigma)
     W = build_adjacency_matrix(corr_matrix, sigma=sigma)
 
-    # Step 3: Normalized Laplacian
+    # 3. Sparsity Guard
+    # Requirement: avg degree >= 3. Avg degree = total_edges / node_count
+    # Total edges = count(W > threshold) / 2 (since symmetric)
+    current_threshold = edge_threshold
+    max_retries = 3
+    for attempt in range(max_retries):
+        edge_mask = W > current_threshold
+        total_edges = np.sum(edge_mask) / 2.0
+        avg_degree = total_edges / n
+        
+        if avg_degree >= 3.0:
+            break
+        
+        logger.warning(
+            "Graph sparse (avg degree %.2f). Falling back: %.2f -> %.2f", 
+            avg_degree, current_threshold, current_threshold - 0.05
+        )
+        current_threshold -= 0.05
+    
+    edge_threshold = current_threshold
+
+    # Step 3: Normalized Laplacian (using final thresholded W)
     L = compute_normalized_laplacian(W)
 
     # Step 4: Alpha Expectations
@@ -132,7 +166,7 @@ def build_graph_data(
     # Step 6: Spring layout
     positions = compute_spring_layout(W, tickers, edge_threshold)
 
-    # Build edges list (only above threshold)
+    # Build edges list (only above final threshold)
     edges = []
     for i in range(n):
         for j in range(i + 1, n):
@@ -156,13 +190,22 @@ def build_graph_data(
             "y": positions.get(ticker, (0, 0))[1],
         })
 
-    return {
+    result = {
         "nodes": nodes,
         "edges": edges,
         "tickers": tickers,
         "residuals": {t: float(residuals[i]) for i, t in enumerate(tickers)},
         "correlation_matrix": corr_matrix.values.tolist(),
+        "meta": {
+            "week": week,
+            "year": year,
+            "threshold": edge_threshold
+        }
     }
+    
+    # Save to cache
+    _graph_cache[cache_key] = result
+    return result
 
 
 def get_residual_history(
