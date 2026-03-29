@@ -54,27 +54,15 @@ class YFinanceFetcher:
 
         for attempt in range(self.max_retries):
             try:
-                # Use the session for fetching
-                data = yf.download(
-                    ticker,
-                    start=start,
-                    end=end,
-                    progress=False,
-                    threads=False,
-                    auto_adjust=True,
-                    session=self.session
-                )
+                # Use Ticker.history() which often hits a different, less-blocked endpoint
+                tk = yf.Ticker(ticker, session=self.session)
+                data = tk.history(start=start, end=end, interval="1d", auto_adjust=True)
                 
                 if not data.empty:
-                    if isinstance(data.columns, pd.MultiIndex):
-                        if "Close" in data.columns.get_level_values(0):
-                            data = data["Close"]
-                        else:
-                            data = data.iloc[:, [0]]
-                    
-                    if isinstance(data, pd.Series):
-                        data = data.to_frame(name="Close")
-                    elif "Close" not in data.columns:
+                    # Ticker.history normally returns a clean single-index DF
+                    if "Close" not in data.columns:
+                        # Fallback to whatever first numeric column exists
+                        data = data.iloc[:, [0]]
                         data.columns = ["Close"]
                         
                     data = data[["Close"]]
@@ -86,7 +74,6 @@ class YFinanceFetcher:
                     return data
                 else:
                     logger.warning(f"No data returned for {ticker} on attempt {attempt+1}")
-                    # Add random jitter between retries
                     time.sleep(self.base_delay + random.uniform(1, 4))
                     
             except Exception as e:
