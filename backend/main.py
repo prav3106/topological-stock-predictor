@@ -400,12 +400,18 @@ async def list_tickers():
 # ──────────────────────────────────────────────
 # Startup event: pre-fetch data
 # ──────────────────────────────────────────────
+
 @app.on_event("startup")
 async def startup_event():
-    """Pre-fetch data on startup to warm the cache."""
+    """Warm the cache in the background so the health check passes immediately."""
     logger.info("🚀 Starting Topology Trading System…")
+    # Warm up in background to pass healthcheck quickly
+    import asyncio
+    asyncio.create_task(background_warmup())
+
+async def background_warmup():
     try:
         _ensure_data(252)
         logger.info("✅ Data pre-fetched successfully (%d tickers)", len(_state["tickers"] or []))
     except Exception as e:
-        logger.warning("⚠️ Startup data fetch failed (will retry on first request): %s", e)
+        logger.warning("⚠️ Background startup data fetch failed: %s", e)
