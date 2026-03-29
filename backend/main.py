@@ -415,3 +415,11 @@ async def background_warmup():
         logger.info("✅ Data pre-fetched successfully (%d tickers)", len(_state["tickers"] or []))
     except Exception as e:
         logger.warning("⚠️ Background startup data fetch failed: %s", e)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    import os
+    # Use Railway's $PORT or default to 8000
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
