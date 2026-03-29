@@ -405,16 +405,23 @@ async def list_tickers():
 async def startup_event():
     """Warm the cache in the background so the health check passes immediately."""
     logger.info("🚀 Starting Topology Trading System…")
-    # Warm up in background to pass healthcheck quickly
+    # Warm up in a separate thread to avoid blocking the main event loop
     import asyncio
-    asyncio.create_task(background_warmup())
+    asyncio.create_task(asyncio.to_thread(background_warmup_sync))
 
-async def background_warmup():
+def background_warmup_sync():
+    """Synchronous warmup wrapper for use in a separate thread."""
     try:
+        # Import inside the call to be sure it's in the thread if needed
+        from data_fetcher import get_processed_data
         _ensure_data(252)
         logger.info("✅ Data pre-fetched successfully (%d tickers)", len(_state["tickers"] or []))
     except Exception as e:
         logger.warning("⚠️ Background startup data fetch failed: %s", e)
+
+
+# The original background_warmup should be renamed or removed
+# I'll rename it as shown above.
 
 
 if __name__ == "__main__":
