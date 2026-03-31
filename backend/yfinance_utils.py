@@ -29,8 +29,6 @@ class YFinanceFetcher:
             "Connection": "keep-alive"
         }
         
-        self.session = requests.Session()
-        self.session.headers.update(self.headers)
         
         if not os.path.exists(self.cache_dir):
             os.makedirs(self.cache_dir)
@@ -55,7 +53,8 @@ class YFinanceFetcher:
         for attempt in range(self.max_retries):
             try:
                 # Use Ticker.history() which often hits a different, less-blocked endpoint
-                tk = yf.Ticker(ticker, session=self.session)
+                # Let yfinance handle its own session for curl_cffi impersonation
+                tk = yf.Ticker(ticker)
                 data = tk.history(start=start, end=end, interval="1d", auto_adjust=True)
                 
                 if not data.empty:

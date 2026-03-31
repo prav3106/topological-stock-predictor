@@ -5,6 +5,8 @@ FastAPI application with all endpoints for the Topology Trading System.
 
 import logging
 from typing import Optional
+import numpy as np
+import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -160,8 +162,20 @@ async def topology_analysis(req: TopologyRequest):
             res_history = get_residual_history(z_ret, history_length=60)
             _state["residual_history"] = res_history
 
+        # Calculate market stats for regime classification (NaN-safe)
+        log_ret = _state["log_returns"]
+        market_stats = log_ret.mean(axis=1).fillna(0)
+        market_mean_ret = float(market_stats.mean() * 252) # Annualized
+        market_vol = float(market_stats.std() * np.sqrt(252)) # Annualized
+
+        # Shield against degenerate values
+        if np.isnan(market_mean_ret): market_mean_ret = 0.0
+        if np.isnan(market_vol): market_vol = 0.15
+
         tda_result = run_topology_analysis(
             _state["residual_history"],
+            market_ret=market_mean_ret,
+            market_vol=market_vol,
             embedding_dim=req.embedding_dim,
         )
         _state["tda_result"] = tda_result
@@ -213,6 +227,7 @@ async def predict(req: PredictRequest):
             horizon_days=req.horizon_days,
             log_returns=_state["log_returns"],
             zscore_returns=_state["zscore_returns"],
+            prices=_state["prices"],
             residuals_history=_state["residual_history"],
             tda_features=tda_features,
             current_price=current_price,
@@ -246,9 +261,10 @@ async def market_regime():
         features = tda_result["features"]
 
         regime_descriptions = {
-            "LOW_COMPLEXITY": "Trending market — momentum strategies favored",
-            "HIGH_COMPLEXITY": "Complex market — mean-reversion and diffusion arbitrage favored",
-            "TRANSITION": "Transitional regime — reduce exposure, mixed signals",
+            "BULL": "Bullish Market — Strong upward momentum, low volatility",
+            "BEAR": "Bearish Market — Negative momentum, high risk",
+            "SIDEWAYS": "Sideways Market — Low volatility, range-bound price action",
+            "VOLATILE": "Volatile Market — High uncertainty, rapid price swings",
         }
 
         return {

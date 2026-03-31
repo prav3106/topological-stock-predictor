@@ -57,25 +57,21 @@ Each topological feature has a:
 - **Diagonal dashed line** = Birth = Death (features on this line are noise/insignificant)
 - **Points far from the diagonal** = significant, persistent structural features
 
-#### Betti Numbers
-| Metric | What It Measures |
-|--------|-----------------|
-| **Betti-0** | Number of connected components (clusters of correlated stocks) |
-| **Betti-1** | Number of loops/cycles (circular correlation patterns) |
+#### Market Regimes (The 4-State HMM)
+The system uses a **Hidden Markov Model (HMM)** that identifies four tactical regimes by monitoring both the market's "shape" (topology) and its "speed" (momentum/volatility).
 
-#### Market Regimes
-| Regime | Meaning | Strategy |
-|--------|---------|----------|
-| 📈 **Low Complexity** | Few features, simple structure → trending market | Momentum strategies work well |
-| 🌀 **High Complexity** | Many features, complex structure → choppy market | Mean-reversion and diffusion arbitrage |
-| ⚡ **Transition** | Regime is changing | Reduce exposure, mixed signals |
+| Regime | Visual | Meaning | Tactical Strategy |
+|--------|---------|---------|------------------|
+| **BULL** | 🟢 Green | Positive momentum + stable structure | Momentum & trend-following favored |
+| **BEAR** | 🔴 Red | Negative momentum + high complexity | Defensive / Hedging / Short-selling |
+| **SIDEWAYS** | 🟠 Amber | Low volatility + range-bound action | Range-trading & mean-reversion |
+| **VOLATILE** | 🟣 Purple | Erratic price action + extreme complexity | High risk; reduce exposure or use spreads |
 
-### The Tooltip (Hover Info)
-When you hover over a point in the persistence diagram, you see:
-- **Dimension**: H0 (component) or H1 (loop)
-- **Birth/Death**: When the feature appeared/disappeared
-- **Lifetime**: How persistent (significant) the feature is
-- **Interpretation**: What this specific feature means for the market
+### Interactive Tooltips & Helpers
+- **Hover Status**: Hover over any status chip in the header for a detailed tactical explanation.
+- **The legend (ⓘ)**: Click or hover the info icon in the header for a quick reference to the 4-state market legend.
+- **Persistence Points**: Hover over any dot in the diagram to see its specific "Lifetime" (statistical significance).
+- **Interpretations**: Each topological feature now has a human-readable interpretation of its market impact.
 
 ---
 
@@ -116,16 +112,18 @@ Correlation Matrix → Gaussian Kernel Adjacency Matrix
     ↓
 Normalized Graph Laplacian
     ↓
-┌──────────────────────────┐     ┌────────────────────────┐
-│ Heat Diffusion:          │     │ Persistent Homology:   │
-│ f(t) = exp(-tL) · f(0)  │     │ Ripser algorithm       │
-│ Residual = f(0) - f(t)  │     │ Birth/Death tracking   │
-│         ↓                │     │         ↓              │
-│ Graph View + Anomalies   │     │ Topology Tab + Regime  │
-└──────────────────────────┘     └────────────────────────┘
+┌──────────────────────────┐     ┌────────────────────────────────┐
+│ Heat Diffusion:          │     │ Hybrid Topological-HMM:        │
+│ f(t) = exp(-tL) · f(0)  │     │ 1. Ripser (Persistent Homology)│
+│ Residual = f(0) - f(t)  │     │ 2. Momentum & Volatility stats │
+│         ↓                │     │ 3. 4-State HMM Classification  │
+│ Graph View + Anomalies   │     │         ↓                      │
+│ (Anomaly Detection)      │     │ Dashboard Legend + Regimes     │
+└──────────────────────────┘     └────────────────────────────────┘
     ↓                                    ↓
-    └──────────── ML Predictor ──────────┘
-                  (Gradient Boosting)
-                       ↓
-              Price Direction Forecast
+    └─────────── Random Forest Predictor ───────────┘
+                 (Volatility-Adjusted Targets)
+                        ↓
+               Directional Probability & 
+               Estimated Price Targets
 ```

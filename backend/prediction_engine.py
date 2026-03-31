@@ -5,7 +5,8 @@ Walk-forward ML prediction with purged cross-validation and embargo.
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
 from typing import Dict, List, Any, Optional, Tuple
 import logging
 
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 def build_features(
     log_returns: pd.DataFrame,
     zscore_returns: pd.DataFrame,
+    prices: pd.DataFrame,
     residuals_history: Dict[str, List[float]],
     tda_features: Dict[str, float],
     ticker: str,
@@ -23,8 +25,8 @@ def build_features(
     Build feature set for a single stock:
       - residuals (last 20 values)
       - TDA summary features
-      - 20-day momentum
-      - 20-day realized volatility
+      - 20-day momentum, vol, z-score
+      - market-wide context features
     """
     if ticker not in log_returns.columns:
         raise ValueError(f"Ticker {ticker} not found in data")
@@ -37,20 +39,32 @@ def build_features(
     ret = ret.loc[common_idx]
     zret = zret.loc[common_idx]
 
-    # Momentum: 20-day cumulative return
+    # Momentum/Vol
     momentum_20 = ret.rolling(20).sum()
-
-    # Volatility: 20-day realized vol
     vol_20 = ret.rolling(20).std() * np.sqrt(252)
-
-    # 5-day momentum
     momentum_5 = ret.rolling(5).sum()
-
-    # 10-day momentum
     momentum_10 = ret.rolling(10).sum()
-
-    # Mean reversion signal: z-score
     zscore_signal = zret
+
+    # --- Market context features ---
+    market_ret = log_returns.mean(axis=1).reindex(common_idx)
+    market_mom_20 = market_ret.rolling(20).sum()
+    market_vol_20 = market_ret.rolling(20).std() * np.sqrt(252)
+
+    # Technical Indicators: RSI
+    def compute_rsi(data, window=14):
+        diff = data.diff()
+        gain = (diff.where(diff > 0, 0)).rolling(window=window).mean()
+        loss = (-diff.where(diff < 0, 0)).rolling(window=window).mean()
+        rs = gain / (loss + 1e-10)
+        return 100 - (100 / (1 + rs))
+
+    rsi_14 = compute_rsi(prices[ticker]).reindex(common_idx)
+    
+    # SMA cross
+    sma_20 = prices[ticker].rolling(20).mean().reindex(common_idx)
+    sma_50 = prices[ticker].rolling(50).mean().reindex(common_idx)
+    sma_signal = (sma_20 > sma_50).astype(int)
 
     # Build features DataFrame
     features = pd.DataFrame(index=common_idx)
@@ -59,27 +73,33 @@ def build_features(
     features["momentum_5"] = momentum_5
     features["volatility_20"] = vol_20
     features["zscore"] = zscore_signal
+    features["rsi_14"] = rsi_14
+    features["sma_signal"] = sma_signal
+    
+    features["market_mom_20"] = market_mom_20
+    features["market_vol_20"] = market_vol_20
 
     # Lagged returns
     for lag in [1, 2, 3, 5]:
         features[f"ret_lag_{lag}"] = ret.shift(lag)
+        features[f"market_lag_{lag}"] = market_ret.shift(lag)
 
-    # Residuals as features (use last available values, broadcast)
+    # Residuals
     res_vals = residuals_history.get(ticker, [])
     if len(res_vals) > 0:
-        features["residual_latest"] = res_vals[-1] if res_vals else 0.0
-        features["residual_mean_5"] = np.mean(res_vals[-5:]) if len(res_vals) >= 5 else np.mean(res_vals)
-        features["residual_std_5"] = np.std(res_vals[-5:]) if len(res_vals) >= 5 else 0.0
+        features["residual_latest"] = res_vals[-1]
+        features["residual_mean_5"] = np.mean(res_vals[-5:])
+        features["residual_std_5"] = np.std(res_vals[-5:])
     else:
         features["residual_latest"] = 0.0
         features["residual_mean_5"] = 0.0
         features["residual_std_5"] = 0.0
 
-    # TDA features (constant per snapshot)
+    # TDA features
     for key, val in tda_features.items():
         features[f"tda_{key}"] = val
 
-    features = features.dropna()
+    features = features.ffill().dropna()
     return features
 
 
@@ -90,16 +110,22 @@ def create_target(
 ) -> pd.Series:
     """
     Target: sign(forward_return) over horizon_days
-      1 = UP, -1 = DOWN, 0 = NEUTRAL (< 0.5% move)
+      1 = UP, -1 = DOWN, 0 = NEUTRAL (based on volatility-adjusted threshold)
     """
     ret = log_returns[ticker].dropna()
-    forward_ret = ret.shift(-horizon_days).rolling(horizon_days).sum().shift(-horizon_days + horizon_days)
-    # Simpler: cumulative return over next horizon_days
     forward_ret = ret.rolling(window=horizon_days).sum().shift(-horizon_days)
+    
+    # 20-day rolling volatility for dynamic thresholding
+    # We want a move that is significant relative to recent vol
+    vol = ret.rolling(20).std() * np.sqrt(horizon_days)
+    threshold = vol * 0.5  # 0.5 standard deviation move over horizon
+    
+    # Ensure a minimum threshold of 0.5%
+    threshold = threshold.apply(lambda x: max(x, 0.005))
 
     target = pd.Series(0, index=forward_ret.index, dtype=int)
-    target[forward_ret > 0.005] = 1   # UP
-    target[forward_ret < -0.005] = -1  # DOWN
+    target[forward_ret > threshold] = 1   # UP
+    target[forward_ret < -threshold] = -1  # DOWN
     # else 0 = NEUTRAL
 
     return target
@@ -136,12 +162,17 @@ def walk_forward_predict(
     if len(X) < min_train_size + 20:
         return 0, 0.5, {}
 
-    # Final split: use all but last 20 days for training, predict latest state
+    # Standardize features
+    scaler = StandardScaler()
+    X_scaled_all = scaler.fit_transform(X.values)
+    X = pd.DataFrame(X_scaled_all, index=X.index, columns=X.columns)
+
+    # Train-test split
     split_point = len(X) - 20
     X_train = X.iloc[:split_point]
     y_train = y.iloc[:split_point]
 
-    # Purge: remove last embargo_days from training to avoid data leakage
+    # Purge/Embargo
     if len(X_train) > embargo_days:
         X_train = X_train.iloc[:-embargo_days]
         y_train = y_train.iloc[:-embargo_days]
@@ -149,19 +180,19 @@ def walk_forward_predict(
     if len(X_train) < min_train_size:
         return 0, 0.5, {}
 
-    # Handle class imbalance
     unique_classes = y_train.unique()
     if len(unique_classes) < 2:
         return int(unique_classes[0]) if len(unique_classes) == 1 else 0, 0.6, {}
 
-    # Train GradientBoosting
-    model = GradientBoostingClassifier(
-        n_estimators=100,
-        max_depth=3,
-        learning_rate=0.1,
-        min_samples_leaf=10,
-        subsample=0.8,
+    # Optimized Random Forest for finance stability
+    model = RandomForestClassifier(
+        n_estimators=200,
+        max_depth=5,
+        min_samples_leaf=15,
+        max_features='sqrt',
+        bootstrap=True,
         random_state=42,
+        class_weight='balanced'
     )
 
     try:
@@ -170,13 +201,14 @@ def walk_forward_predict(
         logger.error("Model training failed: %s", e)
         return 0, 0.5, {}
 
-    # Predict on the latest available features
-    latest_features = features.iloc[[-1]].values
+    # Latest prediction
+    # IMPORTANT: Need to scale latest features using the SAME scaler
+    latest_features_raw = features.iloc[[-1]].values
+    latest_features_scaled = scaler.transform(latest_features_raw)
+    
     try:
-        pred = model.predict(latest_features)[0]
-        proba = model.predict_proba(latest_features)
-
-        # Get probability for predicted class
+        pred = model.predict(latest_features_scaled)[0]
+        proba = model.predict_proba(latest_features_scaled)
         classes = model.classes_
         pred_idx = np.where(classes == pred)[0][0]
         prob = float(proba[0][pred_idx])
@@ -238,6 +270,7 @@ def predict_stock(
     horizon_days: int,
     log_returns: pd.DataFrame,
     zscore_returns: pd.DataFrame,
+    prices: pd.DataFrame,
     residuals_history: Dict[str, List[float]],
     tda_features: Dict[str, float],
     current_price: float,
@@ -247,7 +280,7 @@ def predict_stock(
     """
     # Build features
     features = build_features(
-        log_returns, zscore_returns,
+        log_returns, zscore_returns, prices,
         residuals_history, tda_features, ticker,
     )
 

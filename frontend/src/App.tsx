@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import GraphView from './components/GraphView';
 import PersistenceDiagram from './components/PersistenceDiagram';
 import PredictionPanel from './components/PredictionPanel';
@@ -13,6 +13,13 @@ import {
     useAutoRefresh,
 } from './hooks/useMarketData';
 import type { GraphParams } from './types/market';
+
+const REGIME_DESCRIPTIONS: Record<string, string> = {
+    'BULL': 'Bullish Market — Strong upward momentum, low volatility',
+    'BEAR': 'Bearish Market — Negative momentum, high risk',
+    'SIDEWAYS': 'Sideways Market — Low volatility, range-bound price action',
+    'VOLATILE': 'Volatile Market — High uncertainty, rapid price swings',
+};
 
 type TabKey = 'graph' | 'topology' | 'anomalies' | 'backtest';
 
@@ -40,6 +47,11 @@ export default function App() {
         topology.runTopology({ lookback_days: params.lookback_days, embedding_dim: 10 });
         anomalies.fetchAnomalies();
     }, [params, graph.buildGraph, topology.runTopology, anomalies.fetchAnomalies]);
+
+    // Initial fetch on mount
+    useEffect(() => {
+        handleRefresh();
+    }, []);
 
     useAutoRefresh(handleRefresh, autoRefresh);
 
@@ -85,14 +97,29 @@ export default function App() {
                         </div>
                     )}
                     {topology.data && (
-                        <div className={`status-chip ${
-                            topology.data.regime === 'LOW_COMPLEXITY' ? 'success' :
-                            topology.data.regime === 'HIGH_COMPLEXITY' ? 'danger' : 'warning'
-                        } mono`}>
-                            {topology.data.regime.replace('_', ' ')}
+                        <div className="regime-label-container">
+                            <div 
+                                className="help-icon" 
+                                data-tooltip-align="right"
+                                data-tooltip="Market State Legend:&#10;• BULL: Bullish (Trending Up)&#10;• BEAR: Bearish (Trending Down)&#10;• SIDEWAYS: Neutral (Range-bound)&#10;• VOLATILE: High Risk (Erratic price action)"
+                            >
+                                i
+                            </div>
+                            <span className="regime-label">REGIME:</span>
+                            <div 
+                                className={`status-chip ${
+                                    topology.data.regime === 'BULL' ? 'success' :
+                                    topology.data.regime === 'BEAR' ? 'danger' :
+                                    topology.data.regime === 'SIDEWAYS' ? 'warning' : 'volatile'
+                                } mono`}
+                                data-tooltip-align="right"
+                                data-tooltip={REGIME_DESCRIPTIONS[topology.data.regime]}
+                            >
+                                <span className="status-dot" />
+                                {topology.data.regime.replace('_', ' ')}
+                            </div>
                         </div>
                     )}
-                    <button className="transition-btn mono">TRANSITION</button>
                 </div>
             </header>
 

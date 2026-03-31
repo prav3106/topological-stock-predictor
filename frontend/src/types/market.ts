@@ -49,7 +49,7 @@ export interface TopologyData {
         h1: PersistencePoint[];
     };
     features: TDAFeatures;
-    regime: 'LOW_COMPLEXITY' | 'HIGH_COMPLEXITY' | 'TRANSITION';
+    regime: 'BULL' | 'BEAR' | 'SIDEWAYS' | 'VOLATILE';
     point_cloud_shape: number[];
 }
 
@@ -86,7 +86,7 @@ export interface AnomaliesData {
 }
 
 export interface MarketRegimeData {
-    regime: 'LOW_COMPLEXITY' | 'HIGH_COMPLEXITY' | 'TRANSITION';
+    regime: 'BULL' | 'BEAR' | 'SIDEWAYS' | 'VOLATILE';
     description: string;
     features: TDAFeatures;
 }

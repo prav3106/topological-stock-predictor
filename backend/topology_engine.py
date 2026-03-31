@@ -194,29 +194,37 @@ _hmm_model = None
 def get_hmm_model():
     global _hmm_model
     if _hmm_model is None and GaussianHMM is not None:
-        # Initialize a 3-state HMM
-        _hmm_model = GaussianHMM(n_components=3, covariance_type="diag", random_state=42)
-        # Dummy fit to initialize parameters shapes
-        dummy_X = np.array([
-            [0, 0.5], [0, 0.4], [1, 1.2], [2, 1.5], [3, 2.0], [4, 2.5], [1, 0.8]
-        ])
-        _hmm_model.fit(dummy_X)
+        # 4 states: BULL, BEAR, SIDEWAYS, VOLATILE
+        # Features: [market_ret, market_vol, betti_1, entropy]
+        _hmm_model = GaussianHMM(n_components=4, covariance_type="diag", random_state=42)
         
-        # Manually set Gaussian means for [Betti-1, Entropy] to simulate learned regimes
-        # State 0: Low (trending) -> betti_1 ~ 0, entropy ~ 0.5
-        # State 1: Transition -> betti_1 ~ 1, entropy ~ 1.0
-        # State 2: High (volatile) -> betti_1 ~ 3, entropy ~ 1.8
+        # Initialize means for [Ret, Vol, Betti, Entropy]
+        # BULL (State 0): Positive ret, Low vol, Low complexity
+        # BEAR (State 1): Negative ret, High vol, High complexity
+        # SIDEWAYS (State 2): Zero ret, Low vol, Low complexity
+        # VOLATILE (State 3): Mixed ret, High vol, Very high complexity
         _hmm_model.means_ = np.array([
-            [0.0, 0.5],
-            [1.0, 1.0],
-            [3.0, 1.8]
+            [0.10, 0.12, 0.0, 0.5], 
+            [-0.10, 0.25, 2.0, 1.2],
+            [0.00, 0.10, 0.0, 0.4],
+            [0.00, 0.35, 4.0, 1.8]
+        ])
+        
+        # Dummy fit to finalize shapes
+        dummy_X = np.random.randn(10, 4)
+        _hmm_model.fit(dummy_X)
+        _hmm_model.means_ = np.array([
+            [0.10, 0.12, 0.0, 0.5], 
+            [-0.10, 0.25, 2.0, 1.2],
+            [0.00, 0.10, 0.0, 0.4],
+            [0.00, 0.35, 4.0, 1.8]
         ])
     return _hmm_model
 
-def classify_regime(features: Dict[str, float]) -> str:
+def classify_regime(features: Dict[str, float], market_ret: float, market_vol: float) -> str:
     """
-    Regime classification using Hidden Markov Model on TDA features.
-    Features used: betti_1 (loops), topological_entropy.
+    Regime classification using HMM + Heuristics.
+    Regimes: BULL, BEAR, SIDEWAYS, VOLATILE
     """
     betti_1 = features.get("betti_1", 0)
     entropy = features.get("topological_entropy", 0.0)
@@ -224,24 +232,27 @@ def classify_regime(features: Dict[str, float]) -> str:
     hmm = get_hmm_model()
     if hmm is not None:
         try:
-            X = np.array([[betti_1, entropy]])
+            X = np.array([[market_ret, market_vol, betti_1, entropy]])
             state = hmm.predict(X)[0]
-            labels = {0: "LOW_COMPLEXITY", 1: "TRANSITION", 2: "HIGH_COMPLEXITY"}
-            return labels.get(state, "TRANSITION")
-        except Exception as e:
-            logging.warning(f"HMM predict failed: {e}. Using fallback.")
+            labels = {0: "BULL", 1: "BEAR", 2: "SIDEWAYS", 3: "VOLATILE"}
+            return labels.get(state, "SIDEWAYS")
+        except Exception:
+            pass
 
     # Fallback empirical rules
-    if betti_1 > 3 and entropy > 1.5:
-        return "HIGH_COMPLEXITY"
-    elif betti_1 == 0 and entropy < 0.8:
-        return "LOW_COMPLEXITY"
-    else:
-        return "TRANSITION"
+    if market_vol > 0.30:
+        return "VOLATILE"
+    if market_ret > 0.05 and market_vol < 0.20:
+        return "BULL"
+    if market_ret < -0.05:
+        return "BEAR"
+    return "SIDEWAYS"
 
 
 def run_topology_analysis(
     residual_history: Dict[str, List[float]],
+    market_ret: float = 0.0,
+    market_vol: float = 0.15,
     embedding_dim: int = 10,
 ) -> Dict[str, Any]:
     """
@@ -256,7 +267,7 @@ def run_topology_analysis(
     X = build_point_cloud(residual_history, embedding_dim)
     diagrams = compute_persistent_homology(X, maxdim=1)
     features = extract_tda_features(diagrams)
-    regime = classify_regime(features)
+    regime = classify_regime(features, market_ret, market_vol)
 
     return {
         "diagrams": diagrams,
